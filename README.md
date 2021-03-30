@@ -1,1 +1,1 @@
-# redes
+# sockets
