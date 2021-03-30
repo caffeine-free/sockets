@@ -1,24 +1,41 @@
 const net = require('net');
 const server = net.createServer();  
-var id = 0;
 var clients = new Map();
 
 server.on('connection', function (client) {     
-    var lport = client.localPort;
+    client.setEncoding('utf8');
+    
     var rport = client.remotePort;
-
+    
     console.log('\nClient is listening at port: ' + rport);
-
+    
     server.getConnections(function (error, count) {
         console.log('Number of concurrent connections to the server : ' + count);
     });
 
-    client.setEncoding('utf8');
-
     client.on('data', function (data) {
-		console.log(data);
-		clients.set(client, data);
-		console.log(clients);
+        if (clients.get(client) == null) {
+            clients.set(client, data);
+            var object = {
+				"output" : "a"
+			}
+            client.write(JSON.stringify(object));
+        }
+        else {
+            data = JSON.parse(data);
+            if (data.input) {
+                var keys = Array.from(clients.keys());
+                var randomClient = keys[Math.floor(Math.random() * keys.length)];
+                randomClient.write(JSON.stringify(data));
+            }
+            else if(data.output) {
+                console.log(data);
+                var object = {
+                    "output" : "a"
+                }
+                client.write(JSON.stringify(object));
+            }
+        }
     });
 
     client.on('error', function (error) {
