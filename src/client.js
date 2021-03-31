@@ -1,77 +1,49 @@
-var net = require('net');
-var fs = require('fs');
+const net = require('net');
+const fs = require('fs');
 
-var client  = new net.Socket();
-client.connect({
-	port:4444
-});
+const client  = new net.Socket();
+client.connect({ port: 4444 });
 
-client.on('connect', function() {
+client.on('connect', () => {
 	client.setEncoding('utf8');
 
 	const operations = [];
-	const data = fs.readFileSync('./modelo_entrada.txt', {encoding:'utf8'});
-	var dataSplit = data.split("\r\n");
+	const data = fs.readFileSync('./tests/modelo_entrada.txt', { encoding:'utf8' });
+	var dataSplit = data.split('\r\n');
 
-	for (let index = 0; index < dataSplit.length; index++) {
-		if (!dataSplit[index].startsWith("//") && dataSplit[index] != "") {
-			operations.push(dataSplit[index]);
-		}
-	}
+	dataSplit.forEach(str => {
+		if (!str.startsWith('//') && str != '')
+			operations.push(str);
+	});
 
 	console.log('Client: connection established with server');
 
-	var address = client.address();
-	var port = address.port;
-	console.log('Client is listening at port: ' + port);
-
+	let address = client.address();
+	console.log(`Client is listening at port: ${address.port}`);
 	client.write(operations.shift());	
-
-	client.on('data', function(data) {
+	
+	client.on('data', data => {
 		data = JSON.parse(data);
+		
 		if (data.output) {
-			var object = {
-				"input" : operations.shift(),
-				"client" : data.client
-			}
-
 			console.log(data.output);
-			client.write(JSON.stringify(object));
-		}
-		else if (data.input) {
+			let input = operations.shift();
+			client.write(JSON.stringify({ input, client: data.client }));
+		} else if (data.input) {
 			console.log(data.input);
-			var regC = /[b-df-hj-np-tv-z]/gi;
-			var regV = /[aeiou]/gi;
-			var regN = /\d/gi;
+			let regC = /[b-df-hj-np-tv-z]/gi;
+			let regV = /[aeiou]/gi;
+			let regN = /\d/gi;
 
-			var consoants = data.input.match(regC)?.length;
-			var vowels = data.input.match(regV)?.length;
-			var numbers = data.input.match(regN)?.length
-			
-			if (!consoants) {
-				consoants = 0;
-			}
-			if (!vowels) {
-				vowels = 0;
-			}
-			if (!numbers) {
-				numbers = 0;
-			}
+			let consoants = data.input.match(regC)?.length || 0;
+			let vowels = data.input.match(regV)?.length || 0;
+			let numbers = data.input.match(regN)?.length || 0;
 
 			if (consoants == 0 && vowels == 0 && numbers == 0) {
-				var object = {
-					"output" : "erro",
-					"client" : data.client
-				}
-				client.write(JSON.stringify(object));
-			}
-			else {
-				var output = `C=${consoants};V=${vowels};N=${numbers}`;
-				var object = {
-					"output" : output,
-					"client" : data.client
-				}
-				client.write(JSON.stringify(object));
+				client.write(JSON.stringify({ output: 'erro', client: data.client }));
+			} else {
+				let output = `C=${consoants};V=${vowels};N=${numbers}`;
+				client.write(JSON.stringify({ output, client: data.client }));
 			}
 		}
 	});
