@@ -1,4 +1,6 @@
 const net = require('net');
+const fs = require('fs');
+
 const server = net.createServer();  
 const clients = new Map();
 
@@ -6,7 +8,7 @@ server.on('connection', client => {
   client.setEncoding('utf8');
   
   console.log(`\nClient is listening at port: ${client.remotePort}`);
-	server.getConnections((error, count) => {
+	server.getConnections((err, count) => {
     console.log(`Number of concurrent connections to the server : ${count}`);
 	});
 
@@ -14,7 +16,7 @@ server.on('connection', client => {
     let keys = Array.from(clients.keys());
 
     if (!clients.get(client)) {
-      clients.set(client, data);
+      clients.set(client, []);
       client.write(JSON.stringify({ output: true, client }));
 
     } else {
@@ -26,19 +28,24 @@ server.on('connection', client => {
 
       } else if (data.output) {
         let client = keys.find(c => c.remotePort === data.client._peername.port);
+        
+        clients.get(client).push(data.output);
         client.write(JSON.stringify({ output: data.output, client: data.client }));
       }
     }
 	});
 
-	client.on('error', error => {
-    console.log(`Error : ${error}`);
+	client.on('error', err => {
+    console.log(`Error : ${err}`);
 	});
 
-	client.on('close', error => {
+	client.on('close', err => {
 		console.log('Socket closed!');
-		if (error)
-      console.log(error);
+
+    let path = `./out/${client.remotePort}.txt`;
+    fs.writeFileSync(path, clients.get(client).join(''), { flag: 'w' });
+
+		if (err) throw err;
 	});
 });
 
