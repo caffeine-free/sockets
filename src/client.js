@@ -7,10 +7,14 @@ client.connect({ port: 4444 });
 client.on('connect', () => {
 	client.setEncoding('utf8');
 
-	const operations = [];
-	const data = fs.readFileSync('./tests/modelo_entrada.txt', { encoding:'utf8' });
-	var dataSplit = data.split('\r\n');
+	const fileList = []
+	fs.readdirSync('./tests/').forEach(file => { fileList.push(file) });
 
+	const randomFile = fileList[Math.floor(Math.random() * fileList.length)];
+	const data = fs.readFileSync(`./tests/${randomFile}`, { encoding:'utf8' });
+	const dataSplit = data.split('\r\n');	
+
+	const operations = [];
 	dataSplit.forEach(str => {
 		if (!str.startsWith('//') && str != '')
 			operations.push(str);
@@ -18,7 +22,7 @@ client.on('connect', () => {
 
 	console.log('Client: connection established with server');
 
-	let address = client.address();
+	const address = client.address();
 	console.log(`Client is listening at port: ${address.port}`);
 	client.write(operations.shift());	
 	
