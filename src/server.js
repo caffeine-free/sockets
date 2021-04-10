@@ -9,7 +9,7 @@ server.on('connection', client => {
   
   console.log(`\nClient is listening at port: ${client.remotePort}`);
 	server.getConnections((err, count) => {
-    console.log(`Number of concurrent connections to the server : ${count}`);
+    console.log(`Number of current connections to the server: ${count}`);
 	});
 
 	client.on('data', data => {
@@ -41,10 +41,11 @@ server.on('connection', client => {
 
 	client.on('close', err => {
 		console.log('Socket closed!');
-
+    
     let path = `./out/${client.remotePort}.txt`;
     fs.writeFileSync(path, clients.get(client).join(''), { flag: 'w' });
-
+    clients.delete(client);
+    
 		if (err) throw err;
 	});
 });
