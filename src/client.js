@@ -4,36 +4,36 @@ const fs = require('fs');
 const client  = new net.Socket();
 client.connect({ port: 4444 });
 
+const operations = readFile();
+
 client.on('connect', () => {
 	client.setEncoding('utf8');
 
-	const fileList = []
-	fs.readdirSync('./tests/').forEach(file => { fileList.push(file) });
-
-	const randomFile = fileList[Math.floor(Math.random() * fileList.length)];
-	const data = fs.readFileSync(`./tests/${randomFile}`, { encoding: 'utf8' });
-	const dataSplit = data.split('\r\n');	
-
-	const operations = [];
-	dataSplit.forEach(str => {
-		if (!str.startsWith('//') && str != '')
-			operations.push(str);
-	});
-
+	const address = client.address()
 	console.log('Client: connection established with server');
-
-	const address = client.address();
 	console.log(`Client is listening at port: ${address.port}`);
-	client.write(operations.shift());	
+	client.write(JSON.stringify({ operations: operations.shift() }));	
 	
-	client.on('data', data => {
-		data = JSON.parse(data);
-		
-		if (data.output) {
-			let input = operations.shift();
+	client.on('data', async data => {
+		await new Promise(r => setTimeout(r, 10));
 
-			if (data.output !== true) process.stdout.write(data.output);		
-			client.write(JSON.stringify({ input, client: data.client }));
+		data = JSON.parse(data);
+		if (data.output) {
+			if (data.output === 'close') {
+				process.exit();
+
+			} else if (data.output === 'wait') {
+				client.write(JSON.stringify({ 
+					input: data.operations,
+					client: data.client
+				}));
+
+			} else {
+				let input = operations.shift();
+
+				if (data.output !== 'connected') process.stdout.write(data.output);
+				client.write(JSON.stringify({ input, client: data.client }));
+			}
 
 		} else if (data.input) {
 			let regC = /[b-df-hj-np-tv-z]/gi;
@@ -53,3 +53,21 @@ client.on('connect', () => {
 		}
 	});
 });
+
+function readFile() {;
+	let data = fs.readFileSync(`./tests/${process.argv[2]}`, { encoding: 'utf8' });
+	let dataSplit = data.split('\r\n');	
+
+	let operations = [];
+	dataSplit.forEach(str => {
+		if (!str.startsWith('//') && str != '')
+			operations.push(str);
+	});
+
+	if (Number(operations[0]) !== operations.length - 1) {
+		console.log('Invalid file!');
+		process.exit();
+	}
+
+	return operations;
+}

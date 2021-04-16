@@ -4,6 +4,9 @@ const fs = require('fs');
 const server = net.createServer();  
 const clients = new Map();
 
+var operations = 0;
+var processed = 0;
+
 server.on('connection', client => {     
   client.setEncoding('utf8');
   
@@ -14,24 +17,38 @@ server.on('connection', client => {
 
 	client.on('data', data => {
     let keys = Array.from(clients.keys());
+    data = JSON.parse(data);
 
     if (!clients.get(client)) {
       clients.set(client, []);
-      client.write(JSON.stringify({ output: true, client }));
 
-    } else {
-      data = JSON.parse(data);
-      
-      if (data.input) {
-        let randomClient = keys[Math.floor(Math.random() * keys.length)];
+      if (data.operations) operations += Number(data.operations);
+      client.write(JSON.stringify({ output: 'connected', client }));
+
+    } else if (data.input) {
+      let randomClient = keys[Math.floor(Math.random() * keys.length)];
+
+      if (randomClient === client)
+        randomClient.write(JSON.stringify({ 
+          output: 'wait', 
+          operations: data.input, 
+          client: data.client 
+        }));
+      else
         randomClient.write(JSON.stringify(data));
 
-      } else if (data.output) {
-        let client = keys.find(c => c.remotePort === data.client._peername.port);
-        
-        clients.get(client).push(data.output);
-        client.write(JSON.stringify({ output: data.output, client: data.client }));
-      }
+    } else if (data.output) {
+      let client = keys.find(c => c.remotePort === data.client._peername.port);
+      
+      clients.get(client).push(data.output);
+      client.write(JSON.stringify({ output: data.output, client: data.client }));
+      processed += 1;
+
+    } else if (processed === operations) {
+      client.write(JSON.stringify({ output: 'close' }));
+
+    } else {
+      client.write(JSON.stringify({ output: 'wait', client: data.client }));
     }
 	});
 
@@ -39,14 +56,14 @@ server.on('connection', client => {
     console.log(`Error : ${err}`);
 	});
 
-	client.on('close', err => {
+	client.on('close', () => {
 		console.log('Socket closed!');
     
     let path = `./out/${client.remotePort}.txt`;
     fs.writeFileSync(path, clients.get(client).join(''), { flag: 'w' });
     clients.delete(client);
-    
-		if (err) throw err;
+
+    if (!clients.size) process.exit();
 	});
 });
 
