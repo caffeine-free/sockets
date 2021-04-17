@@ -15,7 +15,7 @@ client.on('connect', () => {
 	client.write(JSON.stringify({ operations: operations.shift() }));	
 	
 	client.on('data', async data => {
-		await new Promise(r => setTimeout(r, 10));
+		await new Promise(r => setTimeout(r, 100));
 
 		data = JSON.parse(data);
 		if (data.output) {
@@ -56,7 +56,9 @@ client.on('connect', () => {
 
 function readFile() {;
 	let data = fs.readFileSync(`./tests/${process.argv[2]}`, { encoding: 'utf8' });
-	let dataSplit = data.split('\r\n');	
+	let dataSplit = data.split('\r\n');
+
+	if (dataSplit.length === 1) dataSplit = data.split('\n');
 
 	let operations = [];
 	dataSplit.forEach(str => {
