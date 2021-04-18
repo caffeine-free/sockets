@@ -1,29 +1,32 @@
-const net = require('net');
+const net = require('dgram');
 const fs = require('fs');
 
-const client  = new net.Socket();
-client.connect({ port: 4444 });
+const client  = new net.Socket('udp4');
+client.connect(4444);
 
 const operations = readFile();
 
 client.on('connect', () => {
-	client.setEncoding('utf8');
-
-	const address = client.address()
+  const address = client.address()
 	console.log('Client: connection established with server');
 	console.log(`Client is listening at port: ${address.port}`);
-	client.write(JSON.stringify({ operations: operations.shift() }));	
+  delay();
+	client.send(JSON.stringify({ operations: operations.shift() }));	
 	
-	client.on('data', async data => {
+	client.on('message', async data => {
 		await new Promise(r => setTimeout(r, 100));
 
 		data = JSON.parse(data);
 		if (data.output) {
 			if (data.output === 'close') {
+        delay();
+        client.send(JSON.stringify({close: 'close'}));
+        client.close();
 				process.exit();
 
 			} else if (data.output === 'wait') {
-				client.write(JSON.stringify({ 
+        await delay();
+				client.send(JSON.stringify({ 
 					input: data.operations,
 					client: data.client
 				}));
@@ -32,7 +35,8 @@ client.on('connect', () => {
 				let input = operations.shift();
 
 				if (data.output !== 'connected') process.stdout.write(data.output);
-				client.write(JSON.stringify({ input, client: data.client }));
+        await delay();
+				client.send(JSON.stringify({ input, client: data.client }));
 			}
 
 		} else if (data.input) {
@@ -45,10 +49,12 @@ client.on('connect', () => {
 			let numbers = data.input.match(regN)?.length || 0;
 
 			if (consoants == 0 && vowels == 0 && numbers == 0) {
-				client.write(JSON.stringify({ output: 'erro\n', client: data.client }));
+        await delay();
+				client.send(JSON.stringify({ output: 'erro\n', client: data.client }));
 			} else {
 				let output = `C=${consoants};V=${vowels};N=${numbers}\n`;
-				client.write(JSON.stringify({ output, client: data.client }));
+        await delay();
+				client.send(JSON.stringify({ output, client: data.client }));
 			}
 		}
 	});
@@ -72,4 +78,8 @@ function readFile() {;
 	}
 
 	return operations;
+}
+
+async function delay() {
+  return new Promise(r => setTimeout(r, Math.random() * (500 - 200) + 200));
 }

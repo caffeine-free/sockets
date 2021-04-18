@@ -7,9 +7,7 @@ const clients = new Map();
 var operations = 0;
 var processed = 0;
 
-server.on('connection', client => {     
-  client.setEncoding('utf8');
-  
+server.on('connection', client => {
   console.log(`\nClient is listening at port: ${client.remotePort}`);
 	server.getConnections((err, count) => {
     console.log(`Number of current connections to the server: ${count}`);
